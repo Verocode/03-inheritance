@@ -15,9 +15,85 @@ public class Animal {
 
 	private static final Logger logger = LogManager.getLogger();
 
-	public enum State {SLEEPING, HUNGRY, DIGESTING, PLAYFUL, DEAD}
+	//public enum State {SLEEPING, HUNGRY, DIGESTING, PLAYFUL, DEAD}
+	public abstract class State{
 
-	private State state = State.SLEEPING;
+		public final State tick(){
+			logger.info("tick()"+state.getClass());
+			logger.info("Time:"+time+ " , awake:"+awake+ " timeSinceFeed"+timeSinceFeed+" sleep:"+sleep+ "digest:"+digest);
+			time++;
+			return successor();
+		}
+		public State feed(){
+			logger.info("Cant feed cat atm!");
+			throw new IllegalStateException("You cant feed it when its not hungry!");
+
+		}
+		abstract State successor();
+
+	}
+	public class DigestionState extends State{
+		@Override
+		State successor() {
+			if (++timeSinceFeed == digest) {
+				logger.info("Getting in a playful mood!");
+
+				timeSinceFeed = 0;
+				return new PlayfulState();
+			}
+			return this;
+		}
+	}
+	public class HungryState extends State{
+		@Override
+		State successor() {
+			if(time == awake){
+				logger.info("Cat starved :(");
+				return new DeathState();
+			}
+			return this;
+		}
+		@Override
+		public State feed(){
+			logger.info("Fed the cat");
+			return new DigestionState();
+		}
+	}
+	public class PlayfulState extends State{
+		@Override
+		State successor() {
+
+			if (time == awake) {
+				logger.info("Yoan... getting tired!");
+
+				time = 0;
+
+				return new SleepingState();
+
+			}
+			return this;
+
+	}
+	}
+	public class SleepingState extends State{
+		@Override
+		State successor() {
+			if (time == sleep) {
+				logger.info("Yawn am hungry hungry!");
+				time=0;
+			return new HungryState();
+			}
+			return this;
+		}
+	}
+	public class DeathState extends State{
+		@Override
+		State successor() {
+			logger.info("ju dead cant success");
+			return this;
+		}
+	}
+	private State state = new SleepingState();
 
 	// state durations (set via constructor), ie. the number of ticks in each state
 	private final int sleep;
@@ -50,53 +126,20 @@ public class Animal {
 
 	public void tick(){
 		logger.info("tick()");
-		time++;
-		switch (state) {
-			case SLEEPING:
-				if (time == sleep) {
-					logger.info("Yoan... getting hungry!");
-					state = HUNGRY;
-					time = 0;
-				}
-				break;
-			case HUNGRY:
-				if(time == awake){
-					logger.info("I've starved for a too long time...good bye...");
-					state = DEAD;
-				}
-				break;
-			case DIGESTING:
-				if (++timeSinceFeed == digest) {
-					logger.info("Getting in a playful mood!");
-					state = PLAYFUL;
-					timeSinceFeed = 0;
-				}
-				break;
-			case PLAYFUL:
-				if (time == awake) {
-					logger.info("Yoan... getting tired!");
-					state = SLEEPING;
-					time = 0;
-				}
-				break;
+		//time++;
+		state = state.tick();
 
-			case DEAD:
-				break;
-			default:
-				throw new IllegalStateException("Unknown cat state " + state.name());
-		}
-
-		logger.info(state.name());
 
 	}
 
 	public void feed(){
-		if (!state.equals(State.HUNGRY))
-			throw new IllegalStateException("Can't stuff a cat...");
-
-		logger.info("You feed the cat...");
-		time = 0;
-		state = State.DIGESTING;
+		if(!state.getClass().equals( HungryState.class)){
+			throw new IllegalStateException("Wrong state to feed!");
+		}
+		else{
+			logger.info("You fed the cat!");
+			state=state.feed();
+		}
 
 	}
 
@@ -116,22 +159,22 @@ public class Animal {
 	}
 
 	public boolean isAsleep() {
-		return state.equals(State.SLEEPING);
+		return state.getClass().equals(SleepingState.class);
 	}
 
 	public boolean isPlayful() {
-		return state.equals(State.PLAYFUL);
+		return state.getClass().equals(PlayfulState.class);
 	}
 
 	public boolean isHungry() {
-		return state.equals(State.HUNGRY);
+		return state.getClass().equals(HungryState.class);
 	}
 
 	public boolean isDigesting() {
-		return state.equals(State.DIGESTING);
+		return state.getClass().equals(DigestionState.class);
 	}
 
 	public boolean isDead() {
-		return state == State.DEAD;
+		return state.getClass().equals(DeathState.class);
 	}
 }
